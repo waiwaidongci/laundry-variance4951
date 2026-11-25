@@ -24,3 +24,11 @@ deliveries = Table('report_deliveries', metadata, Column('id', Integer, primary_
 audit = Table('operation_audit', metadata, Column('id', Integer, primary_key=True),
               Column('at', Double, nullable=False), Column('actor', String(40), nullable=False),
               Column('action', String(30), nullable=False), Column('subject', Integer, nullable=False))
+scheduling_runs = Table('workshop_schedule_runs', metadata, Column('id', Integer, primary_key=True),
+                       Column('dataset_id', Integer, index=True),
+                       Column('plan_name', String(180)),
+                       Column('checksum', String(64), nullable=False, index=True),
+                       Column('request', JSON, nullable=False), Column('result', JSON, nullable=False),
+                       Column('state', String(16), nullable=False, index=True),
+                       Column('owner', String(40), nullable=False),
+                       Column('created', Double, nullable=False), Column('finished', Double))

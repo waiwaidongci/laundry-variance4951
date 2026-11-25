@@ -11,6 +11,7 @@ from src.middlewares.http import install
 from src.models.database import cache, engine
 from src.models.tables import metadata
 from src.routes.api import router
+from src.routes.scheduling import router as scheduling_router
 
 
 @asynccontextmanager
@@ -27,6 +28,7 @@ async def lifespan(app):
 app = FastAPI(title='业务分析工作台', lifespan=lifespan)
 install(app)
 app.include_router(router)
+app.include_router(scheduling_router)
 
 
 @app.get('/health')

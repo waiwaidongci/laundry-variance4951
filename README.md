@@ -27,6 +27,21 @@
 6. 10:00 工艺主管批准原始台账的全量报告，核对分解残差与水表累计绝对差均为 0 L。
 7. 10:15 导出工坊和布类差异 CSV，并将已批准报告安排在 14:00 送达能源管理组。
 
+## 明日洗涤批次排工坊（第 7 个模块）
+
+给次日洗涤批次安排工坊，导航「明日洗涤批次排工坊」（`#6`）。规则与可核对项：
+
+- **整批不拆**：每个明日批次只分配给一个工坊，批次重量整批计入该坊限重。
+- **同类实洗准入**：某种布只能去历史台账中存在该 `工坊 × 布类` 实洗记录的工坊。
+- **加权单耗估算**：单耗 = 该坊该布历史 `sum(actual_liters) ÷ sum(actual_kg)`（不是各批 L/kg 的平均），本批估算用水 = 批次重量 × 该单耗。
+- **最低耗水 / 最小增容**：在各坊限重下精确最小化全批估算耗水（PuLP/CBC 两阶段求解，不可用时回退到标准库确定性分支定界，并经穷举 oracle 校验）。排不下时先精确最小化 `Σ坊 max(0, 已排重量−限重)`，即至少要新增的容量，并给出加在哪些工坊、各加多少。
+- **缺历史单列**：没有任何同类实洗记录（或历史总实洗重量为 0）的批次进入单独表格并写明原因，不参与优化。
+- **超时不称最优**：结果含 `status`（`optimal` / `capacity_shortfall` / `timeout_unproven` / `all_missing_history`）、`proven_optimal`、`expansion_proven`、`timed_out`。超时只回报当前可行方案并在页面以警示条标明「最优性未证实，不得当作最低耗水/最小增容」；`time_limit_seconds: 0` 可确定性复现该状态。仅当日志出现 CBC `Result - Optimal solution found` 或分支定界完整穷举时才标记为已证实。
+- **同版一致**：求解顺序与平局选择全部确定，结果带 `signature`；页面「同版重跑并核对去向」会再次提交同一输入快照并逐批比较工坊与估算用水。
+- **逐批/逐坊核对**：页面给出每批去向、单耗、估算用水、历史总耗水/总实洗与候选工坊，以及每坊限重、已排、剩余容量、建议新增与该坊估算用水；两类表与缺历史表均可导出 CSV。
+
+后端入口：`POST /scheduling/runs`（亦兼容 `POST /scheduling`、`POST /scheduling/run`），`GET /scheduling/runs[/{id}]`、`GET /scheduling/defaults`、`GET /scheduling/history-meta`、`GET /scheduling/runs/{id}/csv?kind=batches|shops|missing`。纯算法入口为 `backend/src/services/scheduling.py` 的 `schedule_workshops(history_rows, plan_batches, capacities, options)`，并已从 `services/domain.py` 导出。
+
 ## 算法与复核
 
 由计划 kg × 计划定额起算，依次换成执行定额、实洗 kg、批次实耗，三步分别得到标准差、量与结构差、效率差。每层的加权实耗为总 L ÷ 总实洗 kg。工坊和布类可填全名筛选，星号表示全部。「展开批次」显示每个交叉项下的批号。

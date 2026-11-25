@@ -178,6 +178,12 @@ def _result_row(level, shop, textile, water, *, day='', batch_id=''):
 
 
 def compute(rows: list[dict], options: dict) -> dict:
+    # 排坊用例复用同一分析入口：options 指明 schedule 模式时分发到排坊算法。
+    if isinstance(options, dict) and options.get('mode') in ('schedule', 'workshop_schedule', '排坊', '明日排坊'):
+        from src.services.scheduling import schedule_workshops
+        plan = options.get('plan_batches', options.get('plan'))
+        capacities = options.get('capacities')
+        return schedule_workshops(rows, plan_batches=plan, capacities=capacities, options=options)
     if not 1 <= len(rows) <= 5000:
         raise ValueError('请导入 1 至 5000 个洗涤批次，超出时按生产周期拆分台账。')
     shop_filter = options.get('shop', ALL)
@@ -266,3 +272,31 @@ def compute(rows: list[dict], options: dict) -> dict:
         },
         'can_publish': not blockers,
     }
+
+
+# 「明日批次排坊」用例与透视算法同属业务算法层；这里导出便于统一检索和测试。
+try:  # 包内导入（src.services.domain / services.domain）
+    from .scheduling import (  # noqa: E402,F401
+        compute_schedule,
+        default_capacities as default_schedule_capacities,
+        default_plan_batches as default_tomorrow_batches,
+        schedule_batches,
+        schedule_workshops,
+    )
+except ImportError:  # 直接以文件路径或把 services 目录加入 sys.path 导入
+    try:
+        from src.services.scheduling import (  # noqa: E402,F401
+            compute_schedule,
+            default_capacities as default_schedule_capacities,
+            default_plan_batches as default_tomorrow_batches,
+            schedule_batches,
+            schedule_workshops,
+        )
+    except ImportError:
+        from scheduling import (  # noqa: E402,F401
+            compute_schedule,
+            default_capacities as default_schedule_capacities,
+            default_plan_batches as default_tomorrow_batches,
+            schedule_batches,
+            schedule_workshops,
+        )
